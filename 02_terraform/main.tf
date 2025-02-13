@@ -46,4 +46,5 @@ module "ec2" {
   private_key_path    = local.filename
   security_group_name = module.security_group.sg_name
   key_name            = local.key_name
+  script_name         = var.script_name
 }

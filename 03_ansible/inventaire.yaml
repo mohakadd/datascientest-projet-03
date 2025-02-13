@@ -1,0 +1,6 @@
+all:
+  children:
+    machines:
+      hosts:
+        machine-1:
+          

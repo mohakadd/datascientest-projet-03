@@ -2,12 +2,12 @@ pipeline {
     agent any 
     environment {
         DOCKERFILE_NAME = "Dockerfile"
-        DOCKER_DIR = "../01_docker"
+        DOCKER_DIR = "01_docker"
         IMAGE_NAME = "ic-webapp"
         IMAGE_TAG = "1.0"
         PORT_APP = "8080"
-        PORT_HOST = "8080"
-        DOCKERHUB_USERNAME = "ulrichsteve"
+        PORT_HOST = "8081"
+        DOCKERHUB_USERNAME = "mohakadd"
         DOCKERHUB_PASSWORD = credentials('dockerhub_password')
     }
     stages {
@@ -30,7 +30,7 @@ pipeline {
                         docker run --name ${IMAGE_NAME} -dp ${PORT_HOST}:${PORT_APP} ${IMAGE_NAME}:${IMAGE_TAG}
                         sleep 5
                         # Teste l'application via une requête HTTP
-                        curl -I http://localhost:${PORT_HOST} | grep -i "200"
+                        curl -I http://44.223.4.1:${PORT_HOST} | grep -i "200"
                     """
                 }
             }
@@ -56,6 +56,5 @@ pipeline {
                 }
             }
         }
-        // Vous pouvez ajouter d'autres stages si nécessaire
     }
 }

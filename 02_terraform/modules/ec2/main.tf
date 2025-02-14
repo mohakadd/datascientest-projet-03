@@ -23,4 +23,7 @@ resource "aws_instance" "project_03" {
   provisioner "local-exec" {
     command = "echo -e 'instance_ip: ${self.public_ip}' >> ip_address.txt"
   }
+  provisioner "local-exec" {
+    command = "echo -e '\nansible_host: ${self.public_ip}' > ../03_ansible/host_vars/machine-1.yaml"
+  }
 }

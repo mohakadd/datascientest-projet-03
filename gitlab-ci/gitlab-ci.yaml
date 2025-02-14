@@ -1,0 +1,101 @@
+stages:
+  - build_image
+  - run_test
+  - stop_delete
+  - login_push
+  - docker_ec2
+  - ansible_docker
+  - delete_docker_ec2
+
+variables:
+  DOCKERFILE_NAME: "Dockerfile"
+  DOCKER_DIR: "./01_docker"
+  IMAGE_NAME: "ic-webapp"
+  IMAGE_TAG: "1.0"
+  PORT_APP: "8080"
+  PORT_HOST: "8081"
+  DOCKERHUB_USERNAME: "ulrichsteve"
+  DOCKERHUB_PASSWORD: $DOCKERHUB_PASSWORD
+  AWS_ACCESS_KEY_ID: $AWS_ACCESS_KEY_ID
+  AWS_SECRET_ACCESS_KEY: $AWS_SECRET_ACCESS_KEY
+
+image: docker:latest
+services:
+  - name: docker:dind
+    alias: docker
+
+build_image:
+  stage: build_image
+  script:
+    -  docker build --no-cache -f ${DOCKER_DIR}/${DOCKERFILE_NAME} -t ${IMAGE_NAME}:${IMAGE_TAG} ${DOCKER_DIR}/.
+    -  docker save -o ${IMAGE_NAME}.tar ${IMAGE_NAME}:${IMAGE_TAG}
+  artifacts:
+    paths:
+      - ic-webapp.tar
+
+run_test:
+  stage: run_test
+  script: 
+    - docker load -i ic-webapp.tar
+    - docker ps -a | grep -i ${IMAGE_NAME} && docker rm -f ${IMAGE_NAME}
+    - docker run --name ${IMAGE_NAME} -dp ${PORT_HOST}:${PORT_APP} ${IMAGE_NAME}:${IMAGE_TAG}
+    - sleep 5
+    - curl -I http://docker:${PORT_HOST} | grep -i "200"
+
+stop_delete:
+  stage: stop_delete
+  script:
+    - docker load -i ic-webapp.tar
+    - docker stop  ${IMAGE_NAME}
+    - docker ps -a | grep -i ${IMAGE_NAME} && docker rm -f ${IMAGE_NAME}
+    - docker tag ${IMAGE_NAME}:${IMAGE_TAG} ${DOCKERHUB_USERNAME}/${IMAGE_NAME}:${IMAGE_TAG}
+
+login_push:
+  stage: login_push
+  script:
+    - docker load -i ic-webapp.tar
+    - echo ${DOCKERHUB_PASSWORD} | docker login -u ${DOCKERHUB_USERNAME} --password-stdin
+    - docker push ${DOCKERHUB_USERNAME}/${IMAGE_NAME}:${IMAGE_TAG}
+
+docker_ec2:
+  stage: docker_ec2
+  image: jenkins/jnlp-agent-terraform
+  script:
+    - mkdir -p ~/.aws
+    - echo "[default]" > ~/.aws/credentials
+    - echo -e "aws_access_key_id=$AWS_ACCESS_KEY_ID" >> ~/.aws/credentials
+    - echo -e "aws_secret_access_key=$AWS_SECRET_ACCESS_KEY" >> ~/.aws/credentials
+    - chmod 400 ~/.aws/credentials
+    - cd 02_terraform/
+    - terraform init
+    - terraform apply -auto-approve -var="script_name=docker.sh"
+    - tar -cvf terraform.tfstate state.tar
+  artifacts:
+    paths:
+     - state.tar
+  
+
+ansible_docker:
+  stage: ansible_docker
+  image: registry.gitlab.com/robconnolly/docker-ansible:latest
+  script:
+    - cd 03_ansible/
+    - cat host_vars/machine-1.yaml
+    - ansible machine-1 -m ping --private-key ../02_terraform/keypair/projet03.pem
+    - sleep 5
+    - ansible-playbook playbooks/docker.yaml --private-key ../02_terraform/keypair/projet03.pem --tags start
+
+delete_docker_ec2:
+  stage: delete_docker_ec2
+  image: jenkins/jnlp-agent-terraform
+  script:
+    - mkdir -p ~/.aws
+    - echo "[default]" > ~/.aws/credentials
+    - echo -e "aws_access_key_id=$AWS_ACCESS_KEY_ID" >> ~/.aws/credentials
+    - echo -e "aws_secret_access_key=$AWS_SECRET_ACCESS_KEY" >> ~/.aws/credentials
+    - chmod 400 ~/.aws/credentials
+    - cd 02_terraform/
+    - tar -zxf state.tar
+    - terraform init
+    - terraform apply -auto-approve -var="script_name=docker.sh"
+ 

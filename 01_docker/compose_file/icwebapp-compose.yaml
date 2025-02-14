@@ -5,5 +5,5 @@ services:
     ports:
       - 8080:8080
     environment:
-      - "ODOO_URL=http://3.90.218.162:8069"
-      - "PGADMIN_URL=http://3.90.218.162:80"
+      - "ODOO_URL=http://34.207.182.211:8069"
+      - "PGADMIN_URL=http://34.207.182.211:80"

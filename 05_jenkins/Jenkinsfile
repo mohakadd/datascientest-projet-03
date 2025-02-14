@@ -8,7 +8,7 @@ environment {
     PORT_APP= "8080"
     PORT_HOST= "8080"
     DOCKERHUB_USERNAME= "ulrichsteve"
-    DOCKERHUB_PASSWORD= 
+    DOCKERHUB_PASSWORD= credential('dockerhub_password')
 }
 stages {
     stage('Build Image'){
